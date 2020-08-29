@@ -152,7 +152,8 @@ class GX2Surface:
 
     @staticmethod
     def copySurface(src, dst):
-        # Check requirements
+        ### Check requirements ###
+
         assert dst.dim == src.dim
         assert dst.width == src.width
         assert dst.height == src.height
@@ -160,10 +161,26 @@ class GX2Surface:
         assert dst.numMips <= src.numMips
         assert dst.format == src.format
 
-        # Check if the two surfaces are the same
-        if src.tileMode == dst.tileMode and (src.tileMode == GX2TileMode.Linear_Aligned
-                                             or src.tileMode == GX2TileMode.Linear_Special
-                                             or ((src.swizzle >> 8) & 7) == ((dst.swizzle >> 8) & 7)):
+        ###    Check if the two surfaces are the same     ###
+        ### (If they are, we can just copy the data over) ###
+
+        # Conditions to check are:
+        # 1. tileMode is the same (and swizzle is the same for non-linear tiling)
+        # 2a. depth is the same (and mipmaps count is the same for depths higher than 1)
+        # 2b. depth differs, but mipmaps count is 1 for both surfaces
+        # These two conditions ensure we can safely slice the source data for the dest data
+
+        # The depths condition can be ignored if we slice with the depth in mind,
+        # but that is currently not supported
+
+        if (src.tileMode == dst.tileMode
+            and (src.tileMode in (GX2TileMode.Linear_Aligned,
+                                  GX2TileMode.Linear_Special)
+                 or ((src.swizzle >> 8) & 7) == ((dst.swizzle >> 8) & 7))
+            and ((src.depth == dst.depth
+                  and (src.depth == 1 or src.numMips == dst.numMips))
+                 or src.numMips == 1)):
+
             # No need to process anything, just copy the data over
             dst.imageData = src.imageData[:dst.imageSize]
             dst.mipData = src.mipData[:dst.mipSize]

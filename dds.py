@@ -3,7 +3,7 @@ import struct
 
 
 class DDSHeader:
-    _sFormat = '<4s7I44x%dx2I12x' % DDSHeader.PixelFormat.size()
+    _sFormat = '<4s7I44x%dx2I12x' % 0x20  # DDSHeader.PixelFormat.size()
 
     _magic = b'DDS '
     _size = struct.calcsize(_sFormat) - 4
