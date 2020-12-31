@@ -111,6 +111,21 @@ class GFDFile:
         self.header = GFDHeader()
         self.textures = []
 
+    def setVersion(self, majorVersion, minorVersion, perfModulation=None):
+        assert majorVersion in (6, 7)
+        self.header.majorVersion = majorVersion
+        self.header.minorVersion = minorVersion
+
+        surfMode = 1 if majorVersion == 6 else 0
+
+        if perfModulation is None:
+            perfModulation = 0 if majorVersion == 6 else 7
+
+        for texture in self.textures:
+            texture.initTextureRegs(surfMode, perfModulation)
+
+        return surfMode, perfModulation
+
     def load(self, data, pos=0):
         start = pos
 
@@ -123,16 +138,19 @@ class GFDFile:
             [],  # GX2Texture_MipData
         ]
 
+        blockHeaderSize = GFDBlockHeader.size()
+        gx2TextureSize = GX2Texture.size()
+
         while True:
             blockHeader = GFDBlockHeader(data, pos)
-            pos += GFDBlockHeader.size()
+            pos += blockHeaderSize
 
             if blockHeader.type == blockHeader.typeEnum.End:
                 break
 
             elif blockHeader.type == blockHeader.typeEnum.GX2Texture_Header:
-                texture = GX2Texture(data, pos)
-                blocks[0].append(texture)
+                assert blockHeader.dataSize == gx2TextureSize
+                blocks[0].append(GX2Texture(data, pos))
 
             elif blockHeader.type == blockHeader.typeEnum.GX2Texture_ImageData:
                 blocks[1].append(data[pos:pos + blockHeader.dataSize])

@@ -62,7 +62,7 @@ def _register4(type_, advisClampLOD, advisFaultLOD, interlaced, perfModulation, 
     )
 
 
-def calcRegs(width, height, numMips, format_, tileMode, pitch, compSel, surfMode):
+def calcRegs(width, height, numMips, format_, tileMode, pitch, compSel, surfMode, perfModulation):
     # register0
     pitch = max(pitch, 8)
     register0 = _register0(width - 1, (pitch // 8) - 1, 0, tileMode, 1)
@@ -93,7 +93,7 @@ def calcRegs(width, height, numMips, format_, tileMode, pitch, compSel, surfMode
     register3 = _register3(0, 0, 0, numMips - 1)
 
     # register4
-    register4 = _register4(2, 0, 0, 0, 0, 4, 0)
+    register4 = _register4(2, 0, 0, 0, perfModulation, 4, 0)
 
     return (
         register0,

@@ -1,7 +1,7 @@
 import struct
 
-from gx2Enum import GX2AAMode, GX2SurfaceUse, GX2TileMode, GX2CompSel
-from gx2Surface import GX2Surface
+from gx2Enum import GX2SurfaceDim, GX2AAMode, GX2SurfaceUse, GX2TileMode, GX2CompSel
+from gx2Surface import GX2Surface, GX2SurfacePrintInfo
 from texRegisters import calcRegs
 
 
@@ -64,15 +64,17 @@ class GX2Texture:
     def size():
         return GX2Surface.size() + 0x28
 
-    def initTextureRegs(self, surfMode=0):
+    def initTextureRegs(self, surfMode=0, perfModulation=7):
         self.regs = list(calcRegs(
             self.surface.width, self.surface.height, self.surface.numMips, self.surface.format.value,
-            self.surface.tileMode.value, self.surface.pitch * (4 if self.surface.format.isBC() else 1),
-            GX2CompSel.getCompSelAsArray(self.compSel), surfMode,
+            self.surface.tileMode.value, self.surface.pitch * (4 if self.surface.format.isCompressed() else 1),
+            GX2CompSel.getCompSelAsArray(self.compSel), surfMode, perfModulation,
         ))
 
     @staticmethod
-    def initTexture(dim, width, height, depth, numMips, format_, compSel, tileMode=GX2TileMode.Default, swizzle=0, surfMode=0):
+    def initTexture(dim, width, height, depth, numMips, format_, compSel, tileMode=GX2TileMode.Default,
+                    swizzle=0, surfMode=0, perfModulation=7):
+
         texture = GX2Texture()
 
         texture.surface.dim = dim
@@ -82,7 +84,7 @@ class GX2Texture:
         texture.surface.numMips = numMips
         texture.surface.format = format_
         texture.surface.tileMode = tileMode
-        texture.surface.swizzle = swizzle
+        texture.surface.swizzle = swizzle << 8
 
         texture.surface.calcSurfaceSizeAndAlignment()
 
@@ -92,6 +94,52 @@ class GX2Texture:
         texture.viewNumSlices = depth
         texture.compSel = compSel
 
-        texture.initTextureRegs(surfMode)
+        texture.initTextureRegs(surfMode, perfModulation)
 
         return texture
+
+
+def GX2TexturePrintInfo(texture):
+    GX2SurfacePrintInfo(texture.surface)
+
+    compSelStr = ("R", "G", "B", "A", "0", "1")
+    compSel = GX2CompSel.getCompSelAsArray(texture.compSel)
+
+    print()
+    print("  GX2 Component Selector:")
+    print("    Red Channel:   ", compSelStr[compSel[0]])
+    print("    Green Channel: ", compSelStr[compSel[1]])
+    print("    Blue Channel:  ", compSelStr[compSel[2]])
+    print("    Alpha Channel: ", compSelStr[compSel[3]])
+
+
+def Linear2DToGX2Texture(width, height, numMips, format_, compSel, imageData, tileMode=GX2TileMode.Default,
+                         swizzle=0, mipData=b'', surfMode=0, perfModulation=7):
+
+    # Create a new GX2Texture to store the untiled texture
+    linear_texture = GX2Texture.initTexture(
+        GX2SurfaceDim.Dim2D, width, height, 1,
+        numMips, format_, compSel,
+        GX2TileMode.Linear_Special,
+    )
+
+    # Validate and set the image data
+    imageData = bytes(imageData); assert len(imageData) >= linear_texture.surface.imageSize
+    linear_texture.surface.imageData = imageData[:linear_texture.surface.imageSize]
+
+    # Validate and set the mip data
+    if numMips > 1:
+        mipData = bytes(mipData); assert len(mipData) >= linear_texture.surface.mipSize
+        linear_texture.surface.mipData = mipData[:linear_texture.surface.mipSize]
+
+    # Create a new GX2Texture to store the tiled texture
+    texture = GX2Texture.initTexture(
+        GX2SurfaceDim.Dim2D, width, height, 1,
+        numMips, format_, compSel, tileMode,
+        swizzle, surfMode, perfModulation,
+    )
+
+    # Tile our texture
+    GX2Surface.copySurface(linear_texture.surface, texture.surface)
+
+    return texture

@@ -1,6 +1,11 @@
+# Built-in libraries
+import os
+import sys
+
 # Local libraries
 import bcn
-from gx2Texture import GX2TileMode, GX2Surface, GX2CompSel, GX2Texture
+from gfd import GFDFile
+from gx2Texture import GX2TileMode, GX2Surface, GX2CompSel, GX2Texture, GX2TexturePrintInfo
 
 try:
     import pyximport
@@ -71,7 +76,11 @@ def GX2SurfaceGetLevels(surface):
     return levels
 
 
-def GX2TextureToPNG(texture):
+def GX2TextureToPNG(texture, printInfo=True):
+    # Print debug info if specified
+    if printInfo:
+        GX2TexturePrintInfo(texture)
+
     # Check if format is supported
     if texture.surface.format.value not in (
         0x1, 0x2, 0x7, 0x8, 0xa,
@@ -93,8 +102,6 @@ def GX2TextureToPNG(texture):
     GX2Surface.copySurface(texture.surface, linear_texture.surface)
 
     levels = GX2SurfaceGetLevels(linear_texture.surface)
-    pngs = []
-
     for i, data in enumerate(levels):
         # Calculate the width and height of the level
         width = max(1, texture.surface.width >> i)
@@ -108,6 +115,37 @@ def GX2TextureToPNG(texture):
 
         # Create an array that satisfies png.from_array
         pixels = tuple(result[y * width * 4 : (y+1) * width * 4] for y in range(height))
-        pngs.append(png_from_array(pixels, 'RGBA'))
+        yield png_from_array(pixels, 'RGBA')
 
-    return pngs
+
+def main():
+    # Check input
+    file = sys.argv[-1]
+    if len(sys.argv) < 2 or not os.path.isfile(file):
+        raise RuntimeError("No valid input file was given!")
+
+    # Read the whole file
+    with open(file, "rb") as inf:
+        inb = inf.read()
+
+    # Create a new GFDFile object
+    gfd = GFDFile()
+
+    # Parse the input file, throw an exception if reading failed
+    try:
+        gfd.load(inb)
+
+    except:
+        raise RuntimeError("Not a valid GFD input file!") from None
+
+    # Get the filename without the extension
+    filename = os.path.splitext(file)[0]
+
+    # Export any present textures
+    for i, texture in enumerate(gfd.textures):
+        for j, png in enumerate(GX2TextureToPNG(texture)):
+            png.save('%s_image%d_level%d.png' % (filename, i, j))
+
+
+if __name__ == '__main__':
+    main()

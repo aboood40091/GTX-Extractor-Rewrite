@@ -85,7 +85,7 @@ class GX2SurfaceFormat(enum.Enum):
     Float_D24S8   = 0x811
     Float_X8X24   = 0x81c
 
-    def isBC(self):
+    def isCompressed(self):
         return 0x31 <= (self.value & 0x3f) <= 0x35
 
 

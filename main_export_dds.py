@@ -1,7 +1,12 @@
+# Built-in libraries
+import os
+import sys
+
 # Local libraries
 from addrlib import surfaceGetBitsPerPixel as getBitsPerPixel
 from dds import DDSHeader
-from gx2Texture import GX2TileMode, GX2Surface, GX2CompSel, GX2Texture
+from gfd import GFDFile
+from gx2Texture import GX2TileMode, GX2Surface, GX2CompSel, GX2Texture, GX2TexturePrintInfo
 from util import divRoundUp
 
 
@@ -12,18 +17,22 @@ fourCCs = {
 }
 
 validComps = {
-    0x1: {0: 0x000000ff},
-    0x2: {0: 0x0000000f, 1: 0x000000f0},
-    0x7: {0: 0x000000ff, 1: 0x0000ff00},
-    0x8: {0: 0x0000001f, 1: 0x000007e0, 2: 0x0000f800},
-    0xa: {0: 0x0000001f, 1: 0x000003e0, 2: 0x00007c00, 3: 0x00008000},
-    0xb: {0: 0x0000000f, 1: 0x000000f0, 2: 0x00000f00, 3: 0x0000f000},
+    0x01: {0: 0x000000ff},
+    0x02: {0: 0x0000000f, 1: 0x000000f0},
+    0x07: {0: 0x000000ff, 1: 0x0000ff00},
+    0x08: {0: 0x0000001f, 1: 0x000007e0, 2: 0x0000f800},
+    0x0a: {0: 0x0000001f, 1: 0x000003e0, 2: 0x00007c00, 3: 0x00008000},
+    0x0b: {0: 0x0000000f, 1: 0x000000f0, 2: 0x00000f00, 3: 0x0000f000},
     0x19: {0: 0x3ff00000, 1: 0x000ffc00, 2: 0x000003ff, 3: 0xc0000000},
     0x1a: {0: 0x000000ff, 1: 0x0000ff00, 2: 0x00ff0000, 3: 0xff000000},
 }
 
 
-def GX2TextureToDDS(texture):
+def GX2TextureToDDS(texture, printInfo=True):
+    # Print debug info if specified
+    if printInfo:
+        GX2TexturePrintInfo(texture)
+
     # Check if format is supported
     if texture.surface.format.value not in (
         0x1, 0x2, 0x7, 0x8, 0xa,
@@ -39,8 +48,9 @@ def GX2TextureToDDS(texture):
     if 4 in (r, g, b, a):
         raise ValueError("Exporting as DDS with Component Selector set to Zero is not supported!")
 
-    if 5 in (r, g, b):
-        raise ValueError("Exporting as DDS with RGB Component Selectors set to One is not supported!")
+    ## Check if One is used, but texture is not alpha-only
+    if 5 in (r, g, b) and not (r == g == b and a < 4):
+        raise ValueError("Exporting as DDS with RGB Component Selectors set to One and not alpha-only is not supported!")
 
     # Create a new GX2Texture to store the untiled texture
     linear_texture = GX2Texture.initTexture(
@@ -71,7 +81,7 @@ def GX2TextureToDDS(texture):
         header.caps |= (DDSHeader.Caps.Complex.value | DDSHeader.Caps.MipMap.value)
 
     # Treat uncompressed formats differently
-    if not texture.surface.format.isBC():
+    if not texture.surface.format.isCompressed():
         # Set the pitch and its flag
         header.pitchOrLinearSize = header.width * bytesPerPixel
         header.flags |= DDSHeader.Flags.Pitch.value
@@ -82,8 +92,8 @@ def GX2TextureToDDS(texture):
         # Check alpha
         alphaOnly = False
         if a < 4:
-            if texture.surface.format.value == 0x1 and r in (0, 5) and g in (0, 5) and b in (0, 5) and a == 0:
-                # Alpha-only (only A8 format for now)
+            if r == g == b == 5:
+                # Alpha-only (specifically A8, but could be anything)
                 alphaOnly = True
                 header.pixelFormat.flags |= DDSHeader.PixelFormat.Flags.Alpha.value
 
@@ -108,9 +118,8 @@ def GX2TextureToDDS(texture):
         # Handle colors if not alpha-only
         if not alphaOnly:
             # Check for RGB vs Luminance
-            if r == g == b and (texture.surface.format.value == 0x1 and r == 0
-                                or texture.surface.format.value in (0x2, 0x7) and r in (0, 1)):
-                # Luminance (specifically L8/LA4/LA8)
+            if r == g == b:
+                # Luminance (specifically L8/LA4/LA8, but could be anything)
                 header.pixelFormat.flags |= DDSHeader.PixelFormat.Flags.Luminance.value
 
             else:
@@ -150,3 +159,37 @@ def GX2TextureToDDS(texture):
         ### TODO: Check components for BCn; DDS doesn't even let you pick ###
 
     return b''.join([header.save(), linear_texture.surface.imageData, linear_texture.surface.mipData])
+
+
+def main():
+    # Check input
+    file = sys.argv[-1]
+    if len(sys.argv) < 2 or not os.path.isfile(file):
+        raise RuntimeError("No valid input file was given!")
+
+    # Read the whole file
+    with open(file, "rb") as inf:
+        inb = inf.read()
+
+    # Create a new GFDFile object
+    gfd = GFDFile()
+
+    # Parse the input file, throw an exception if reading failed
+    try:
+        gfd.load(inb)
+
+    except:
+        raise RuntimeError("Not a valid GFD input file!") from None
+
+    # Get the filename without the extension
+    filename = os.path.splitext(file)[0]
+
+    # Export any present textures
+    for i, texture in enumerate(gfd.textures):
+        dds = GX2TextureToDDS(texture)
+        with open('%s_image%d.dds' % (filename, i), "wb+") as outf:
+            outf.write(dds)
+
+
+if __name__ == '__main__':
+    main()

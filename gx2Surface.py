@@ -119,9 +119,18 @@ class GX2Surface:
         self.alignment = surfInfo.baseAlign
         self.pitch = surfInfo.pitch
 
-        # TODO: set swizzle 1D tile level for tiled surfaces
+        # Ensure pipe and bank swizzle is valid
+        self.swizzle &= 0x0700
 
-        # Calculate the mip size and mip offsets
+        # Calculate the swizzle 1D tiling start level, mip size, mip offsets and 
+        tiling1dLevel = 0
+        tiling1dLevelSet = GX2TileMode(surfInfo.tileMode) in (
+            GX2TileMode.Linear_Aligned, GX2TileMode.Linear_Special,
+            GX2TileMode.Tiled_1D_Thin1, GX2TileMode.Tiled_1D_Thick,
+        )
+        if not tiling1dLevelSet:
+            tiling1dLevel += 1
+
         self.mipSize = 0
         for mipLevel in range(1, self.numMips):
             # Calculate the surface info for the mip level
@@ -144,7 +153,24 @@ class GX2Surface:
                 # Level offset should be the size of all previous levels (aligned)
                 self.mipOffset[mipLevel - 1] = self.mipSize
 
+            # Increase the total mip size by this level's size
             self.mipSize += surfInfo.surfSize
+
+            # Calculate the swizzle 1D tiling start level for tiled surfaces
+            if not tiling1dLevelSet:
+                # Check if the tiling mode switched to 1D tiling
+                tileMode = GX2TileMode(surfInfo.tileMode)
+                if tileMode in (GX2TileMode.Tiled_1D_Thin1, GX2TileMode.Tiled_1D_Thick):
+                    tiling1dLevelSet = True
+
+                else:
+                    tiling1dLevel += 1
+
+        ## If the tiling mode never switched to 1D tiling, set the start level to 13 (observed from existing files)
+        if not tiling1dLevelSet:
+            tiling1dLevel = 13
+
+        self.swizzle |= tiling1dLevel << 16
 
         # Clear the unused mip offsets
         for mipLevel in range(self.numMips, 14):
@@ -209,7 +235,7 @@ class GX2Surface:
         assert tilingDepth == 1
 
         # Block width and height for the format
-        blkWidth, blkHeight = (4, 4) if src.format.isBC() else (1, 1)
+        blkWidth, blkHeight = (4, 4) if src.format.isCompressed() else (1, 1)
 
         # Bytes-per-pixel
         bpp = divRoundUp(surfInfo.bpp, 8)
@@ -227,7 +253,7 @@ class GX2Surface:
 
         # Untile the other levels (mipmaps)
         offset = 0
-        for mipLevel in range(1, src.numMips):
+        for mipLevel in range(1, dst.numMips):
             # Calculate the width and height of the mip level
             width = max(1, src.width >> mipLevel)
             height = max(1, src.height >> mipLevel)
@@ -274,7 +300,7 @@ class GX2Surface:
         assert tilingDepth == 1
 
         # Block width and height for the format
-        blkWidth, blkHeight = (4, 4) if dst.format.isBC() else (1, 1)
+        blkWidth, blkHeight = (4, 4) if dst.format.isCompressed() else (1, 1)
 
         # Bytes-per-pixel
         bpp = divRoundUp(surfInfo.bpp, 8)
@@ -286,7 +312,7 @@ class GX2Surface:
         )[:surfInfo.surfSize]
 
         # Tile the other levels (mipmaps)
-        dst.mipData = b''
+        mipData = bytearray()
         for mipLevel in range(1, dst.numMips):
             # Calculate the width and height of the mip level
             width = max(1, dst.width >> mipLevel)
@@ -299,10 +325,31 @@ class GX2Surface:
             )
 
             if mipLevel != 1:
-                dst.mipData += b'\0' * (dst.mipOffset[mipLevel - 1] - len(dst.mipData))
+                mipData += b'\0' * (dst.mipOffset[mipLevel - 1] - len(mipData))
 
             # Untile the mip level
-            dst.mipData += addrlib.swizzle(
+            mipData += addrlib.swizzle(
                 width, height, 1, dst.format.value, 0, dst.use.value, surfInfo.tileMode,
                 dst.swizzle, surfInfo.pitch, surfInfo.bpp, 0, 0, levels[mipLevel].ljust(surfInfo.surfSize, b'\0'),
             )[:surfInfo.surfSize]
+
+        dst.mipData = bytes(mipData)
+
+
+def GX2SurfacePrintInfo(surface):
+    print()
+    print("// ----- GX2Surface Info ----- ")
+    print("  dim             =", repr(surface.dim))
+    print("  width           =", surface.width)
+    print("  height          =", surface.height)
+    print("  depth           =", surface.depth)
+    print("  numMips         =", surface.numMips)
+    print("  format          =", repr(surface.format))
+    print("  aa              =", repr(surface.aa))
+    print("  use             =", repr(surface.use))
+    print("  imageSize       =", surface.imageSize)
+    print("  mipSize         =", surface.mipSize)
+    print("  tileMode        =", repr(surface.tileMode))
+    print("  swizzle         =", "%d," % surface.swizzle, hex(surface.swizzle))
+    print("  alignment       =", surface.alignment)
+    print("  pitch           =", surface.pitch)
