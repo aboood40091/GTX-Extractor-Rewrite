@@ -49,6 +49,18 @@ def main():
     except:
         raise RuntimeError("Not a valid DDS input file!") from None
 
+    if header.depth > 1 or header.caps2 & DDSHeader.Caps2.Volume.value:
+        raise NotImplementedError("3D textures are not supported!")
+
+    if header.caps2 & (DDSHeader.Caps2.CubeMap.value
+                       | DDSHeader.Caps2.CubeMap_PositiveX.value
+                       | DDSHeader.Caps2.CubeMap_NegativeX.value
+                       | DDSHeader.Caps2.CubeMap_PositiveY.value
+                       | DDSHeader.Caps2.CubeMap_NegativeY.value
+                       | DDSHeader.Caps2.CubeMap_PositiveZ.value
+                       | DDSHeader.Caps2.CubeMap_NegativeZ.value):
+        raise NotImplementedError("Cube Maps are not supported!")
+
     # Get misc. values
     width = header.width
     height = header.height
