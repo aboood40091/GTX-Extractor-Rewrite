@@ -142,9 +142,23 @@ def main():
     filename = os.path.splitext(file)[0]
 
     # Export any present textures
-    for i, texture in enumerate(gfd.textures):
-        for j, png in enumerate(GX2TextureToPNG(texture)):
-            png.save('%s_image%d_level%d.png' % (filename, i, j))
+    if len(gfd.textures) == 1:
+        texture = gfd.textures[0]
+        if texture.surface.numMips == 1:
+            next(GX2TextureToPNG(texture)).save('%s.png' % filename)
+
+        else:
+            for j, png in enumerate(GX2TextureToPNG(texture)):
+                png.save('%s_level%d.png' % (filename, j))
+
+    else:
+        for i, texture in enumerate(gfd.textures):
+            if texture.surface.numMips == 1:
+                next(GX2TextureToPNG(texture)).save('%s_image%d.png' % (filename, i))
+
+            else:
+                for j, png in enumerate(GX2TextureToPNG(texture)):
+                    png.save('%s_image%d_level%d.png' % (filename, i, j))
 
 
 if __name__ == '__main__':

@@ -30,7 +30,7 @@ def main():
     #####################################################################################################
     ########################################### Parse options ###########################################
 
-    filenames, output, gfd, surfMode, perfModulation, tileMode, swizzle, SRGB = processArgv()
+    filenames, output, gfd, surfMode, perfModulation, tileMode, swizzle, SRGB, compSelIdx = processArgv()
 
     #####################################################################################################
     ############################################ DDS Reading ############################################
@@ -96,42 +96,52 @@ def main():
             for format_, masks in validComps[bitsPerPixel].items():
                 if alphaOnly:  # Alpha-only
                     if aMask in masks:
-                        compSel = (GX2CompSel.Component.One.value << 24 |
-                                   GX2CompSel.Component.One.value << 16 |
-                                   GX2CompSel.Component.One.value << 8  |
-                                   masks.index(aMask))
+                        compSelArr = (GX2CompSel.Component.One.value,
+                                      GX2CompSel.Component.One.value,
+                                      GX2CompSel.Component.One.value,
+                                      masks.index(aMask),
+                                      GX2CompSel.Component.Zero.value,
+                                      GX2CompSel.Component.One.value)
                         break
 
                 elif hasAlpha and RGB:  # RGBA
                     if rMask in masks and gMask in masks and bMask in masks and aMask in masks:
-                        compSel = (masks.index(rMask) << 24 |
-                                   masks.index(gMask) << 16 |
-                                   masks.index(bMask) << 8  |
-                                   masks.index(aMask))
+                        compSelArr = (masks.index(rMask),
+                                      masks.index(gMask),
+                                      masks.index(bMask),
+                                      masks.index(aMask),
+                                      GX2CompSel.Component.Zero.value,
+                                      GX2CompSel.Component.One.value)
                         break
 
                 elif hasAlpha:  # LA (Luminance + Alpha)
                     if rMask in masks and aMask in masks:
-                        compSel = (masks.index(rMask) << 24 |
-                                   masks.index(rMask) << 16 |
-                                   masks.index(rMask) << 8  |
-                                   masks.index(aMask))
+                        compSelArr = (masks.index(rMask),
+                                      masks.index(rMask),
+                                      masks.index(rMask),
+                                      masks.index(aMask),
+                                      GX2CompSel.Component.Zero.value,
+                                      GX2CompSel.Component.One.value)
                         break
 
                 elif RGB:  # RGB
                     if rMask in masks and gMask in masks and bMask in masks:
-                        compSel = (masks.index(rMask) << 24 |
-                                   masks.index(gMask) << 16 |
-                                   masks.index(bMask) << 8  |
-                                   GX2CompSel.Component.One.value)
+                        compSelArr = (masks.index(rMask),
+                                      masks.index(gMask),
+                                      masks.index(bMask),
+                                      GX2CompSel.Component.One.value,
+                                      GX2CompSel.Component.Zero.value,
+                                      GX2CompSel.Component.One.value)
                         break
 
                 else:  # Luminance
                     if rMask in masks:
-                        compSel = (masks.index(rMask) << 24 |
-                                   masks.index(rMask) << 16 |
-                                   masks.index(rMask) << 8  |
-                                   GX2CompSel.Component.One.value)
+                        compSelArr = (masks.index(rMask),
+                                      masks.index(rMask),
+                                      masks.index(rMask),
+                                      GX2CompSel.Component.One.value,
+                                      GX2CompSel.Component.Zero.value,
+                                      GX2CompSel.Component.One.value)
                         break
 
             else:
@@ -155,7 +165,12 @@ def main():
                 raise RuntimeError("Unrecognized FourCC: %s" % repr(header.pixelFormat.fourCC))
 
             # DDS is incapable of letting you select the components for BCn
-            compSel = GX2CompSel.RGBA
+            compSelArr = (GX2CompSel.Component.Red.value,
+                          GX2CompSel.Component.Green.value,
+                          GX2CompSel.Component.Blue.value,
+                          GX2CompSel.Component.Alpha.value,
+                          GX2CompSel.Component.Zero.value,
+                          GX2CompSel.Component.One.value)
 
             # Determine the format and blockSize, check and add SRGB mask
             format_, blockSize = fourCCs[header.pixelFormat.fourCC]
@@ -202,10 +217,21 @@ def main():
 
         # TODO: RGBA8, for now
         format_ = GX2SurfaceFormat.SRGB_RGBA8 if SRGB else GX2SurfaceFormat.Unorm_RGBA8
-        compSel = GX2CompSel.RGBA
+        compSelArr = (GX2CompSel.Component.Red.value,
+                      GX2CompSel.Component.Green.value,
+                      GX2CompSel.Component.Blue.value,
+                      GX2CompSel.Component.Alpha.value,
+                      GX2CompSel.Component.Zero.value,
+                      GX2CompSel.Component.One.value)
 
     #####################################################################################################
     ############################################ GTX Writing ############################################
+
+    # Combine the component selectors read from the input files and the user
+    compSel = (compSelArr[compSelIdx[0]] << 24 |
+               compSelArr[compSelIdx[1]] << 16 |
+               compSelArr[compSelIdx[2]] << 8  |
+               compSelArr[compSelIdx[3]])
 
     # Add the texture to the GFD file
     gfd.textures.append(Linear2DToGX2Texture(

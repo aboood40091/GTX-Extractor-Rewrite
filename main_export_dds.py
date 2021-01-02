@@ -181,10 +181,16 @@ def main():
     filename = os.path.splitext(file)[0]
 
     # Export any present textures
-    for i, texture in enumerate(gfd.textures):
-        dds = GX2TextureToDDS(texture)
-        with open('%s_image%d.dds' % (filename, i), "wb+") as outf:
+    if len(gfd.textures) == 1:
+        dds = GX2TextureToDDS(gfd.textures[0])
+        with open('%s.dds' % filename, "wb+") as outf:
             outf.write(dds)
+
+    else:
+        for i, texture in enumerate(gfd.textures):
+            dds = GX2TextureToDDS(texture)
+            with open('%s_image%d.dds' % (filename, i), "wb+") as outf:
+                outf.write(dds)
 
 
 if __name__ == '__main__':

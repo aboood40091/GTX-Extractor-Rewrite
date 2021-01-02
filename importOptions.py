@@ -32,12 +32,13 @@ def processArgv():
     option_tileMode = '-tileMode'
     option_swizzle  = '-swizzle'
     option_SRGB     = '-SRGB'
+    option_compSel  = '-compSel'
 
     # Tuple of all available options
     options = (
         option_help, option_input, option_output, option_append,
         option_noalign, option_v6, option_v6_1, option_v7,
-        option_tileMode, option_swizzle, option_SRGB,
+        option_tileMode, option_swizzle, option_SRGB, option_compSel,
     )
     # Tuple of verion options
     options_version = (option_v6, option_v6_1, option_v7)
@@ -52,10 +53,6 @@ def processArgv():
 
     # Handle specifying the input
     if option_input in argv:
-        if not (option_append in argv or option_output in argv):
-            raise ValueError("The inputs (-i) must not be specified without enabling append option (-a)" \
-                             " and/or specifying the output (-o)!")
-
         # Read input list
         start = argv.index(option_input) + 1
         end = start
@@ -104,6 +101,9 @@ def processArgv():
                 name = name[:-14]
 
             elif name[-7:] == "_image0":
+                name = name[:-7]
+
+            elif name[-7:] == "_level0":
                 name = name[:-7]
 
         else:
@@ -188,4 +188,19 @@ def processArgv():
     # Use SRGB when possible
     SRGB = option_SRGB in argv
 
-    return filenames, output, gfd, surfMode, perfModulation, tileMode, swizzle, SRGB
+    # Handle specifying the compSel
+    if option_compSel in argv:
+        idx = argv.index(option_compSel) + 1
+        if idx == argc:
+            raise ValueError("(-compSel) was specified, but no valid compSel value was entered!")
+
+        compSelStr = argv[idx].upper()
+        if len(compSelStr) != 4 or not all(comp in 'RGBA01' for comp in compSelStr):
+            raise ValueError("Invalid compSel value entered! Expected 4-character combination of the characters \"R, G, B, A, 0 and 1\".")
+
+        compSel = tuple('RGBA01'.index(comp) for comp in compSelStr)
+
+    else:
+        compSel = (0, 1, 2, 3)
+
+    return filenames, output, gfd, surfMode, perfModulation, tileMode, swizzle, SRGB, compSel
