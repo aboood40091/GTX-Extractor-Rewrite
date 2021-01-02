@@ -7,7 +7,6 @@ from addrlib import surfaceGetBitsPerPixel as getBitsPerPixel
 from dds import DDSHeader
 from gfd import GFDFile
 from gx2Texture import GX2TileMode, GX2Surface, GX2CompSel, GX2Texture, GX2TexturePrintInfo
-from util import divRoundUp
 
 
 fourCCs = {
@@ -17,14 +16,14 @@ fourCCs = {
 }
 
 validComps = {
-    0x01: {0: 0x000000ff},
-    0x02: {0: 0x0000000f, 1: 0x000000f0},
-    0x07: {0: 0x000000ff, 1: 0x0000ff00},
-    0x08: {0: 0x0000001f, 1: 0x000007e0, 2: 0x0000f800},
-    0x0a: {0: 0x0000001f, 1: 0x000003e0, 2: 0x00007c00, 3: 0x00008000},
-    0x0b: {0: 0x0000000f, 1: 0x000000f0, 2: 0x00000f00, 3: 0x0000f000},
-    0x19: {0: 0x3ff00000, 1: 0x000ffc00, 2: 0x000003ff, 3: 0xc0000000},
-    0x1a: {0: 0x000000ff, 1: 0x0000ff00, 2: 0x00ff0000, 3: 0xff000000},
+    0x01: (0x000000ff,),
+    0x02: (0x0000000f, 0x000000f0,),
+    0x07: (0x000000ff, 0x0000ff00,),
+    0x08: (0x0000001f, 0x000007e0, 0x0000f800,),
+    0x0a: (0x0000001f, 0x000003e0, 0x00007c00, 0x00008000,),
+    0x0b: (0x0000000f, 0x000000f0, 0x00000f00, 0x0000f000,),
+    0x19: (0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000,),
+    0x1a: (0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000,),
 }
 
 
@@ -64,7 +63,7 @@ def GX2TextureToDDS(texture, printInfo=True):
 
     # Bits-per-pixel and bytes-per-pixel
     bitsPerPixel = getBitsPerPixel(texture.surface.format.value)
-    bytesPerPixel = divRoundUp(bitsPerPixel, 8)
+    bytesPerPixel = bitsPerPixel // 8
 
     # Create a new DDSHeader object
     header = DDSHeader()
@@ -82,16 +81,25 @@ def GX2TextureToDDS(texture, printInfo=True):
 
     # Treat uncompressed formats differently
     if not texture.surface.format.isCompressed():
+        # Set the bits-per-pixel
+        header.pixelFormat.rgbBitCount = bitsPerPixel
+
         # Set the pitch and its flag
         header.pitchOrLinearSize = header.width * bytesPerPixel
         header.flags |= DDSHeader.Flags.Pitch.value
 
-        # Set the bits-per-pixel
-        header.pixelFormat.rgbBitCount = bitsPerPixel
+        # Valid masks for this texture format
+        masks = validComps[texture.surface.format.value & 0x3F]
 
         # Check alpha
         alphaOnly = False
         if a < 4:
+            # Validate Alpha
+            if not 0 <= a < len(masks):
+                raise ValueError("Invalid Alpha channel Component Selector: %s" % repr(GX2CompSel.Component(a)))
+
+            header.pixelFormat.aBitMask = masks[a]
+
             if r == g == b == 5:
                 # Alpha-only (specifically A8, but could be anything)
                 alphaOnly = True
@@ -101,19 +109,9 @@ def GX2TextureToDDS(texture, printInfo=True):
                 # Has alpha
                 header.pixelFormat.flags |= DDSHeader.PixelFormat.Flags.AlphaPixels.value
 
-        # Valid components for this texture format
-        formatValidComps = validComps[texture.surface.format.value & 0x3F]
-
-        # Validate Alpha
-        if 3 not in formatValidComps and a == 5:
-            # Texture format doesn't have alpha
+        else:  # a == 5
+            # No alpha
             header.pixelFormat.aBitMask = 0
-
-        elif a not in formatValidComps:
-            raise ValueError("Invalid Alpha channel Component Selector: %s" % repr(GX2CompSel.Component(a)))
-
-        else:
-            header.pixelFormat.aBitMask = formatValidComps[a]
 
         # Handle colors if not alpha-only
         if not alphaOnly:
@@ -127,36 +125,34 @@ def GX2TextureToDDS(texture, printInfo=True):
                 header.pixelFormat.flags |= DDSHeader.PixelFormat.Flags.RGB.value
 
             # Validate Red
-            if r not in formatValidComps:
-                raise ValueError("Invalid Red channel Component Selector: %s" % repr(GX2CompSel.Component(r)))
-
-            else:
-                header.pixelFormat.rBitMask = formatValidComps[r]
+            if not 0 <= r < len(masks):
+                raise ValueError("Invalid Red channel Component Selector: %s"   % repr(GX2CompSel.Component(r)))
 
             # Validate Green
-            if g not in formatValidComps:
+            if not 0 <= g < len(masks):
                 raise ValueError("Invalid Green channel Component Selector: %s" % repr(GX2CompSel.Component(g)))
 
-            else:
-                header.pixelFormat.gBitMask = formatValidComps[g]
-
             # Validate Blue
-            if b not in formatValidComps:
-                raise ValueError("Invalid Blue channel Component Selector: %s" % repr(GX2CompSel.Component(b)))
+            if not 0 <= b < len(masks):
+                raise ValueError("Invalid Blue channel Component Selector: %s"  % repr(GX2CompSel.Component(b)))
 
-            else:
-                header.pixelFormat.bBitMask = formatValidComps[b]
+            # Set the RGB masks
+            header.pixelFormat.rBitMask = masks[r]
+            header.pixelFormat.gBitMask = masks[g]
+            header.pixelFormat.bBitMask = masks[b]
 
     else:
-        # Set the linear size and its flag
-        header.pitchOrLinearSize = linear_texture.surface.imageSize
-        header.flags |= DDSHeader.Flags.LinearSize.value
-
         # Set fourCC and its flag
         header.pixelFormat.flags |= DDSHeader.PixelFormat.Flags.FourCC.value
         header.pixelFormat.fourCC = fourCCs[texture.surface.format.value & 0x3F]
 
-        ### TODO: Check components for BCn; DDS doesn't even let you pick ###
+        # Set the linear size and its flag
+        header.pitchOrLinearSize = linear_texture.surface.imageSize
+        header.flags |= DDSHeader.Flags.LinearSize.value
+
+        # DDS is incapable of letting you select the components for BCn
+        if texture.compSel != GX2CompSel.RGBA:
+            raise ValueError("Exporting as compressed DDS with RGBA Component Selectors not set to RGBA is not supported!")
 
     return b''.join([header.save(), linear_texture.surface.imageData, linear_texture.surface.mipData])
 

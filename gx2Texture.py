@@ -102,15 +102,14 @@ class GX2Texture:
 def GX2TexturePrintInfo(texture):
     GX2SurfacePrintInfo(texture.surface)
 
-    compSelStr = ("R", "G", "B", "A", "0", "1")
-    compSel = GX2CompSel.getCompSelAsArray(texture.compSel)
+    compSel = tuple(GX2CompSel.getComponent(texture.compSel, i) for i in range(4))
 
     print()
-    print("  GX2 Component Selector:")
-    print("    Red Channel:   ", compSelStr[compSel[0]])
-    print("    Green Channel: ", compSelStr[compSel[1]])
-    print("    Blue Channel:  ", compSelStr[compSel[2]])
-    print("    Alpha Channel: ", compSelStr[compSel[3]])
+    print("// ----- GX2 Component Selectors ----- ")
+    print("  Red Channel     =", repr(compSel[0]))
+    print("  Green Channel   =", repr(compSel[1]))
+    print("  Blue Channel    =", repr(compSel[2]))
+    print("  Alpha Channel   =", repr(compSel[3]))
 
 
 def Linear2DToGX2Texture(width, height, numMips, format_, compSel, imageData, tileMode=GX2TileMode.Default,

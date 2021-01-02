@@ -54,6 +54,13 @@ class DDSHeader:
 
             assert size == self._size
 
+            # Make sure one and only one of these is enabled
+            assert bin(self.flags & (DDSHeader.PixelFormat.Flags.Alpha.value
+                                     | DDSHeader.PixelFormat.Flags.FourCC.value
+                                     | DDSHeader.PixelFormat.Flags.RGB.value
+                                     | DDSHeader.PixelFormat.Flags.YUV.value
+                                     | DDSHeader.PixelFormat.Flags.Luminance.value)).count("1") == 1
+
             if self.flags & DDSHeader.PixelFormat.Flags.FourCC.value:
                 assert self.fourCC != b'\0\0\0\0'
 
