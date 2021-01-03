@@ -10,20 +10,24 @@ from gx2Texture import GX2TileMode, GX2Surface, GX2CompSel, GX2Texture, GX2Textu
 
 
 fourCCs = {
-    0x31: b'DXT1',
-    0x32: b'DXT3',
-    0x33: b'DXT5',
+    0x031: b'DXT1',
+    0x032: b'DXT3',
+    0x033: b'DXT5',
+    0x034: b'ATI1',
+    0x035: b'ATI2',
+    0x234: b'BC4S',
+    0x235: b'BC5S',
 }
 
 validComps = {
-    0x01: (0x000000ff,),
-    0x02: (0x0000000f, 0x000000f0,),
-    0x07: (0x000000ff, 0x0000ff00,),
-    0x08: (0x0000001f, 0x000007e0, 0x0000f800,),
-    0x0a: (0x0000001f, 0x000003e0, 0x00007c00, 0x00008000,),
-    0x0b: (0x0000000f, 0x000000f0, 0x00000f00, 0x0000f000,),
-    0x19: (0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000,),
-    0x1a: (0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000,),
+    0x001: (0x000000ff,),
+    0x002: (0x0000000f, 0x000000f0,),
+    0x007: (0x000000ff, 0x0000ff00,),
+    0x008: (0x0000001f, 0x000007e0, 0x0000f800,),
+    0x00a: (0x0000001f, 0x000003e0, 0x00007c00, 0x00008000,),
+    0x00b: (0x0000000f, 0x000000f0, 0x00000f00, 0x0000f000,),
+    0x019: (0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000,),
+    0x01a: (0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000,),
 }
 
 
@@ -34,22 +38,13 @@ def GX2TextureToDDS(texture, printInfo=True):
 
     # Check if format is supported
     if texture.surface.format.value not in (
-        0x1, 0x2, 0x7, 0x8, 0xa,
-        0xb, 0x19, 0x1a, 0x41a,
-        0x31, 0x431, 0x32, 0x432,
-        0x33, 0x433,
-        # TODO: BC4 and BC5
+        0x001, 0x002, 0x007, 0x008, 0x00a,
+        0x00b, 0x019, 0x01a, 0x41a,
+        0x031, 0x431, 0x032, 0x432,
+        0x033, 0x433, 0x034, 0x234,
+        0x035, 0x235,
     ):
         raise NotImplementedError("Unimplemented texture format: %s" % repr(texture.surface.format))
-
-    # Check if the Component Selectors are supported
-    r, g, b, a = GX2CompSel.getCompSelAsArray(texture.compSel)
-    if 4 in (r, g, b, a):
-        raise ValueError("Exporting as DDS with Component Selector set to Zero is not supported!")
-
-    ## Check if One is used, but texture is not alpha-only
-    if 5 in (r, g, b) and not (r == g == b and a < 4):
-        raise ValueError("Exporting as DDS with RGB Component Selectors set to One and not alpha-only is not supported!")
 
     # Create a new GX2Texture to store the untiled texture
     linear_texture = GX2Texture.initTexture(
@@ -88,6 +83,15 @@ def GX2TextureToDDS(texture, printInfo=True):
         header.pitchOrLinearSize = header.width * bytesPerPixel
         header.flags |= DDSHeader.Flags.Pitch.value
 
+        # Check if the Component Selectors are supported
+        r, g, b, a = GX2CompSel.getCompSelAsArray(texture.compSel)
+        if 4 in (r, g, b, a):
+            raise ValueError("Exporting as DDS with Component Selector set to Zero is not supported!")
+
+        ## Check if One is used, but texture is not alpha-only
+        if 5 in (r, g, b) and not (r == g == b and a < 4):
+            raise ValueError("Exporting as DDS with RGB Component Selectors set to One and not alpha-only is not supported!")
+
         # Valid masks for this texture format
         masks = validComps[texture.surface.format.value & 0x3F]
 
@@ -96,7 +100,7 @@ def GX2TextureToDDS(texture, printInfo=True):
         if a < 4:
             # Validate Alpha
             if not 0 <= a < len(masks):
-                raise ValueError("Invalid Alpha channel Component Selector: %s" % repr(GX2CompSel.Component(a)))
+                raise ValueError("Invalid Alpha Channel Component Selector: %s" % repr(GX2CompSel.Component(a)))
 
             header.pixelFormat.aBitMask = masks[a]
 
@@ -126,15 +130,15 @@ def GX2TextureToDDS(texture, printInfo=True):
 
             # Validate Red
             if not 0 <= r < len(masks):
-                raise ValueError("Invalid Red channel Component Selector: %s"   % repr(GX2CompSel.Component(r)))
+                raise ValueError("Invalid Red Channel Component Selector: %s"   % repr(GX2CompSel.Component(r)))
 
             # Validate Green
             if not 0 <= g < len(masks):
-                raise ValueError("Invalid Green channel Component Selector: %s" % repr(GX2CompSel.Component(g)))
+                raise ValueError("Invalid Green Channel Component Selector: %s" % repr(GX2CompSel.Component(g)))
 
             # Validate Blue
             if not 0 <= b < len(masks):
-                raise ValueError("Invalid Blue channel Component Selector: %s"  % repr(GX2CompSel.Component(b)))
+                raise ValueError("Invalid Blue Channel Component Selector: %s"  % repr(GX2CompSel.Component(b)))
 
             # Set the RGB masks
             header.pixelFormat.rBitMask = masks[r]
@@ -144,15 +148,17 @@ def GX2TextureToDDS(texture, printInfo=True):
     else:
         # Set fourCC and its flag
         header.pixelFormat.flags |= DDSHeader.PixelFormat.Flags.FourCC.value
-        header.pixelFormat.fourCC = fourCCs[texture.surface.format.value & 0x3F]
+        header.pixelFormat.fourCC = fourCCs[texture.surface.format.value & 0x3F + 0x200]
 
         # Set the linear size and its flag
         header.pitchOrLinearSize = linear_texture.surface.imageSize
         header.flags |= DDSHeader.Flags.LinearSize.value
 
         # DDS is incapable of letting you select the components for BCn
-        if texture.compSel != GX2CompSel.RGBA:
-            raise ValueError("Exporting as compressed DDS with RGBA Component Selectors not set to RGBA is not supported!")
+        if texture.surface.format.value & 4 or texture.compSel != GX2CompSel.RGBA:
+            print("\nWarning: exporting as compressed DDS with application of RGBA Component Selectors is not possible!" \
+                  "\nBe noted of the current RGBA Component Selectors when viewing the ouput DDS file or re-importing it." \
+                  "\nIf you want to see what this texture really looks like, consider exporting as PNG instead.")
 
     return b''.join([header.save(), linear_texture.surface.imageData, linear_texture.surface.mipData])
 

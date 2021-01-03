@@ -9,20 +9,28 @@ from png import Reader as png_reader
 
 
 fourCCs = {
-    b'DXT1': (0x31, 8),
-    b'DXT3': (0x32, 16),
-    b'DXT5': (0x33, 16),
+    b'DXT1': (0x031, 0x08),
+    b'DXT2': (0x032, 0x10),
+    b'DXT3': (0x032, 0x10),
+    b'DXT4': (0x033, 0x10),
+    b'DXT5': (0x033, 0x10),
+    b'ATI1': (0x034, 0x08),
+    b'BC4U': (0x034, 0x08),
+    b'BC4S': (0x234, 0x08),
+    b'ATI2': (0x035, 0x10),
+    b'BC5U': (0x035, 0x10),
+    b'BC5S': (0x235, 0x10),
 }
 
 validComps = {
-    0x08: {0x01: (0x000000ff,),
-           0x02: (0x0000000f, 0x000000f0,)},
-    0x10: {0x07: (0x000000ff, 0x0000ff00,),
-           0x08: (0x0000001f, 0x000007e0, 0x0000f800,),
-           0x0a: (0x0000001f, 0x000003e0, 0x00007c00, 0x00008000,),
-           0x0b: (0x0000000f, 0x000000f0, 0x00000f00, 0x0000f000,)},
-    0x20: {0x19: (0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000,),
-           0x1a: (0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000,)},
+    0x08: {0x001: (0x000000ff,),
+           0x002: (0x0000000f, 0x000000f0,)},
+    0x10: {0x007: (0x000000ff, 0x0000ff00,),
+           0x008: (0x0000001f, 0x000007e0, 0x0000f800,),
+           0x00a: (0x0000001f, 0x000003e0, 0x00007c00, 0x00008000,),
+           0x00b: (0x0000000f, 0x000000f0, 0x00000f00, 0x0000f000,)},
+    0x20: {0x019: (0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000,),
+           0x01a: (0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000,)},
 }
 
 
@@ -160,21 +168,43 @@ def main():
                 raise NotImplementedError("DX10 DDS files are not supported!")
 
             # Validate FourCC
-            ## TODO: BC4 and BC5
             elif header.pixelFormat.fourCC not in fourCCs:
                 raise RuntimeError("Unrecognized FourCC: %s" % repr(header.pixelFormat.fourCC))
 
-            # DDS is incapable of letting you select the components for BCn
-            compSelArr = (GX2CompSel.Component.Red.value,
-                          GX2CompSel.Component.Green.value,
-                          GX2CompSel.Component.Blue.value,
-                          GX2CompSel.Component.Alpha.value,
-                          GX2CompSel.Component.Zero.value,
-                          GX2CompSel.Component.One.value)
-
-            # Determine the format and blockSize, check and add SRGB mask
+            # Determine the format and blockSize
             format_, blockSize = fourCCs[header.pixelFormat.fourCC]
-            if SRGB: format_ |= 0x400
+
+            # DDS is incapable of letting you select the components for BCn
+            if not (format_ & 4):
+                # Determined format is BC1 or BC2 or BC3
+                compSelArr = (GX2CompSel.Component.Red.value,
+                              GX2CompSel.Component.Green.value,
+                              GX2CompSel.Component.Blue.value,
+                              GX2CompSel.Component.Alpha.value,
+                              GX2CompSel.Component.Zero.value,
+                              GX2CompSel.Component.One.value)
+
+                # Check and add SRGB mask
+                if SRGB: format_ |= 0x400
+
+            elif (format_ & 0x3F) == 0x34:
+                # Determined format is BC4
+                compSelArr = (GX2CompSel.Component.Red.value,
+                              GX2CompSel.Component.Zero.value,
+                              GX2CompSel.Component.Zero.value,
+                              GX2CompSel.Component.One.value,
+                              GX2CompSel.Component.Zero.value,
+                              GX2CompSel.Component.One.value)
+
+            elif (format_ & 0x3F) == 0x35:
+                # Determined format is BC5
+                compSelArr = (GX2CompSel.Component.Red.value,
+                              GX2CompSel.Component.Green.value,
+                              GX2CompSel.Component.Zero.value,
+                              GX2CompSel.Component.One.value,
+                              GX2CompSel.Component.Zero.value,
+                              GX2CompSel.Component.One.value)
+
             format_ = GX2SurfaceFormat(format_)
 
             # Calculate imageSize for this level
