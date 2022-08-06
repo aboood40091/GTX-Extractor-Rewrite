@@ -331,7 +331,7 @@ def computeSurfaceBankSwappedWidth(tileMode, bpp, numSamples, pitch):
 def computeSurfaceAddrFromCoordLinear(x, y, slice, sample, bpp, pitch, height, numSlices):
     sliceOffset = pitch * height * (slice + sample * numSlices)
     addr = (y * pitch + x + sliceOffset) * bpp
-    
+
     return addr
 
 
@@ -430,7 +430,7 @@ def computeSurfaceAddrFromCoordMacroTiled(x, y, slice, sample, bpp, pitch, heigh
         macroTileHeight = 64
 
     macroTilesPerRow = pitch // macroTilePitch
-    macroTileBytes = (numSamples * microTileThickness * bpp * macroTileHeight
+    macroTileBytes = (numSamples * microTileThickness * bpp * macroTileHeight  \
                       * macroTilePitch + 7) // 8
     macroTileIndexX = x // macroTilePitch
     macroTileIndexY = y // macroTileHeight
@@ -1019,15 +1019,17 @@ def computeSurfaceInfoMacroTiled(tileMode, baseTileMode, bpp, numSamples, pitch,
             expTileMode = 4
             microTileThickness = 1
 
-    if (tileMode == baseTileMode
-        or not mipLevel
-        or not isThickMacroTiled(baseTileMode)
-        or isThickMacroTiled(tileMode)):
+    if tileMode == baseTileMode                     \
+            or not mipLevel                         \
+            or not isThickMacroTiled(baseTileMode)  \
+            or isThickMacroTiled(tileMode):
+
         baseAlign, pitchAlign, heightAlign, macroWidth, macroHeight = computeSurfaceAlignmentsMacroTiled(
             tileMode,
             bpp,
             flags,
-            numSamples)
+            numSamples
+        )
 
         bankSwappedWidth = computeSurfaceBankSwappedWidth(tileMode, bpp, numSamples, pitch)
 

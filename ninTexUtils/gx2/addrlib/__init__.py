@@ -5,16 +5,17 @@
 # Copyright © 2018 AboodXD
 
 # Addrlib
-# A Python/Cython Address Library for Wii U textures.
+# A Python/Cython Texture Address Library for Wii U textures.
 
-try:
-    import pyximport
-    pyximport.install()
+from ..._cython import is_available as _is_cython_available
 
+
+if _is_cython_available:
     from . import addrlib_cy as addrlib
 
-except:
+else:
     from . import addrlib
+
 
 # Define the functions that can be used
 getDefaultGX2TileMode = addrlib.getDefaultGX2TileMode

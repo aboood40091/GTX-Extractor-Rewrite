@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Test files
+tests/
+*.gtx
+*.dds
+*.png

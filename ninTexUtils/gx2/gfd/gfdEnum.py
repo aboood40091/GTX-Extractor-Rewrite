@@ -1,18 +1,18 @@
 import enum
 
 
-class GFDGPUVersion(enum.Enum):
+class GFDGPUVersion(enum.IntEnum):
     Zero = 0
     One  = 1
     GPU7 = 2
 
 
-class GFDAlignMode(enum.Enum):
+class GFDAlignMode(enum.IntEnum):
     Disable = 0
     Enable  = 1
 
 
-class GFDBlockTypeV0(enum.Enum):
+class GFDBlockTypeV0(enum.IntEnum):
     # Basic
     Invalid     = 0
     End         = 1
@@ -31,7 +31,7 @@ class GFDBlockTypeV0(enum.Enum):
     GSH_Header  = 8
     GSH_Program = 9
 
-    ### version-0-specific values ###
+    #     version-0-specific values     #
 
     # GX2 Texture
     GX2Texture_Header    = 10
@@ -46,7 +46,7 @@ class GFDBlockTypeV0(enum.Enum):
     Reserved_2           = 15
 
 
-class GFDBlockTypeV1(enum.Enum):
+class GFDBlockTypeV1(enum.IntEnum):
     # Basic
     Invalid     = 0
     End         = 1
@@ -65,7 +65,7 @@ class GFDBlockTypeV1(enum.Enum):
     GSH_Header  = 8
     GSH_Program = 9
 
-    ### version-1-specific values ###
+    #   version-1-specific values   #
 
     # Geometry Shader (cont.)
     GSH_CopyProgram      = 10

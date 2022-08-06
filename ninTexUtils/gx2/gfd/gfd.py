@@ -1,8 +1,14 @@
 import struct
 
-from gfdEnum import GFDGPUVersion, GFDAlignMode, GFDBlockTypeV0, GFDBlockTypeV1
-from gx2Texture import GX2Texture, GX2CompSel
-from util import roundUp
+from ...util import roundUp
+
+from ..gx2Texture import GX2CompSel
+from ..gx2Texture import GX2Texture
+
+from .gfdEnum import GFDAlignMode
+from .gfdEnum import GFDBlockTypeV0
+from .gfdEnum import GFDBlockTypeV1
+from .gfdEnum import GFDGPUVersion
 
 
 class GFDHeader:
@@ -31,7 +37,7 @@ class GFDHeader:
         assert magic == self._magic
         assert size == self._size
         assert self.majorVersion in (6, 7)
-        assert gpuVersion == self._gpuVersion.value
+        assert gpuVersion == self._gpuVersion
 
         self.alignMode = GFDAlignMode(alignMode)
 
@@ -42,8 +48,8 @@ class GFDHeader:
             self._size,
             self.majorVersion,
             self.minorVersion,
-            self._gpuVersion.value,
-            self.alignMode.value,
+            self._gpuVersion,
+            self.alignMode,
         )
 
     @staticmethod
@@ -97,7 +103,7 @@ class GFDBlockHeader:
             self._size,
             self.majorVersion,
             self.minorVersion,
-            self.type.value,
+            self.type,
             self.dataSize,
         )
 
@@ -165,12 +171,16 @@ class GFDFile:
         self.textures = []
 
         for texture in blocks[0]:
-            imageData = blocks[1][imageDataIdx]; imageDataIdx += 1
+            imageData = blocks[1][imageDataIdx]
+            imageDataIdx += 1
+
             texture.surface.imageData = imageData
             assert len(imageData) == texture.surface.imageSize
 
             if texture.surface.numMips > 1:
-                mipData = blocks[2][mipDataIdx]; mipDataIdx += 1
+                mipData = blocks[2][mipDataIdx]
+                mipDataIdx += 1
+
                 texture.surface.mipData = mipData
                 assert len(mipData) == texture.surface.mipSize
 
@@ -185,10 +195,11 @@ class GFDFile:
         # Check alignment
         align = self.header.alignMode == GFDAlignMode.Enable
 
+        outBuffer = bytearray()
         pos = 0
 
-        outBuffer = bytearray()
-        outBuffer += self.header.save(); pos += GFDHeader.size()
+        outBuffer += self.header.save()
+        pos += GFDHeader.size()
 
         blockHeaderSize = GFDBlockHeader.size()
         gx2TextureSize = GX2Texture.size()
@@ -201,50 +212,66 @@ class GFDFile:
             blockHeader.type = blockHeader.typeEnum.GX2Texture_Header
             blockHeader.dataSize = gx2TextureSize
 
-            outBuffer += blockHeader.save(); pos += blockHeaderSize
-            outBuffer += texture.save(); pos += gx2TextureSize
+            outBuffer += blockHeader.save()
+            pos += blockHeaderSize
+
+            outBuffer += texture.save()
+            pos += gx2TextureSize
 
             if align:
                 # Write Pad block for the image data
-                ## Calculate the needed pad
+                #   Calculate the needed pad
                 dataPos = pos + blockHeaderSize * 2
                 padSize = roundUp(dataPos, texture.surface.alignment) - dataPos
 
                 blockHeader.type = blockHeader.typeEnum.Pad
                 blockHeader.dataSize = padSize
 
-                outBuffer += blockHeader.save(); pos += blockHeaderSize
-                outBuffer += b'\0' * padSize; pos += padSize
+                outBuffer += blockHeader.save()
+                pos += blockHeaderSize
+
+                outBuffer += b'\0' * padSize
+                pos += padSize
 
             blockHeader.type = blockHeader.typeEnum.GX2Texture_ImageData
             blockHeader.dataSize = texture.surface.imageSize
 
-            outBuffer += blockHeader.save(); pos += blockHeaderSize
-            outBuffer += texture.surface.imageData; pos += texture.surface.imageSize
+            outBuffer += blockHeader.save()
+            pos += blockHeaderSize
+
+            outBuffer += texture.surface.imageData
+            pos += texture.surface.imageSize
 
             if texture.surface.mipData:
                 if align:
                     # Write Pad block for the mipmap data
-                    ## Calculate the needed pad
+                    #   Calculate the needed pad
                     dataPos = pos + blockHeaderSize * 2
                     padSize = roundUp(dataPos, texture.surface.alignment) - dataPos
 
                     blockHeader.type = blockHeader.typeEnum.Pad
                     blockHeader.dataSize = padSize
 
-                    outBuffer += blockHeader.save(); pos += blockHeaderSize
-                    outBuffer += b'\0' * padSize; pos += padSize
+                    outBuffer += blockHeader.save()
+                    pos += blockHeaderSize
+
+                    outBuffer += b'\0' * padSize
+                    pos += padSize
 
                 blockHeader.type = blockHeader.typeEnum.GX2Texture_MipData
                 blockHeader.dataSize = texture.surface.mipSize
 
-                outBuffer += blockHeader.save(); pos += blockHeaderSize
-                outBuffer += texture.surface.mipData; pos += texture.surface.mipSize
+                outBuffer += blockHeader.save()
+                pos += blockHeaderSize
+
+                outBuffer += texture.surface.mipData
+                pos += texture.surface.mipSize
 
         blockHeader.type = blockHeader.typeEnum.End
         blockHeader.dataSize = 0
 
-        outBuffer += blockHeader.save(); pos += blockHeaderSize
-        assert len(outBuffer) == pos
+        outBuffer += blockHeader.save()
+        pos += blockHeaderSize
 
+        assert len(outBuffer) == pos
         return outBuffer

@@ -1,7 +1,7 @@
 import enum
 
 
-class GX2SurfaceDim(enum.Enum):
+class GX2SurfaceDim(enum.IntEnum):
     Dim1D            = 0
     Dim2D            = 1
     Dim3D            = 2
@@ -12,7 +12,7 @@ class GX2SurfaceDim(enum.Enum):
     Dim2D_MSAA_Array = 7
 
 
-class GX2SurfaceFormat(enum.Enum):
+class GX2SurfaceFormat(enum.IntEnum):
     Invalid       = 0x000
     Unorm_RG4     = 0x002
     Unorm_RGBA4   = 0x00b
@@ -86,30 +86,30 @@ class GX2SurfaceFormat(enum.Enum):
     Float_X8X24   = 0x81c
 
     def isCompressed(self):
-        return 0x31 <= (self.value & 0x3f) <= 0x35
+        return 0x31 <= (self & 0x3f) <= 0x35
 
 
-class GX2AAMode(enum.Enum):
+class GX2AAMode(enum.IntEnum):
     Mode1X = 0
     Mode2X = 1
     Mode4X = 2
     Mode8X = 3
 
 
-class GX2SurfaceUse(enum.Enum):
+class GX2SurfaceUse(enum.IntFlag):
     Texture     = 0x00000001
     ColorBuffer = 0x00000002
     DepthBuffer = 0x00000004
     ScanBuffer  = 0x00000008
     TV          = 0x80000000
 
-    ColorBuffer_Texture    = 0x00000001 | 0x00000002
-    DepthBuffer_Texture    = 0x00000001 | 0x00000004
-    ColorBuffer_Texture_TV = 0x00000001 | 0x00000002 | 0x80000000
-    ColorBuffer_TV         = 0x00000002 | 0x80000000
+    ColorBuffer_Texture    = Texture | ColorBuffer
+    DepthBuffer_Texture    = Texture | DepthBuffer
+    ColorBuffer_Texture_TV = Texture | ColorBuffer | TV
+    ColorBuffer_TV         = ColorBuffer | TV
 
 
-class GX2TileMode(enum.Enum):
+class GX2TileMode(enum.IntEnum):
     Default        = 0
     Linear_Aligned = 1
     Tiled_1D_Thin1 = 2
@@ -143,7 +143,7 @@ class GX2CompSel:
     ABGR = 0x03020100
     ARGB = 0x03000102
 
-    class Component(enum.Enum):
+    class Component(enum.IntEnum):
         Red = 0
         Green = 1
         Blue = 2
@@ -153,7 +153,7 @@ class GX2CompSel:
 
     @staticmethod
     def getComponent(compSel, i):
-        return GX2CompSel.Component((compSel >> (24-8*i)) & 0xFF)
+        return GX2CompSel.Component((compSel >> (24 - 8 * i)) & 0xFF)
 
     @staticmethod
     def getComp0(compSel):
@@ -173,11 +173,11 @@ class GX2CompSel:
 
     @staticmethod
     def getCompSel(comp0, comp1, comp2, comp3):
-        return ((comp0.value & 0xFF) << 24 |
-                (comp1.value & 0xFF) << 16 |
-                (comp2.value & 0xFF) << 8  |
-                (comp3.value & 0xFF))
+        return (comp0 & 0xFF) << 24 |  \
+               (comp1 & 0xFF) << 16 |  \
+               (comp2 & 0xFF) << 8  |  \
+               (comp3 & 0xFF)
 
     @staticmethod
     def getCompSelAsArray(compSel):
-        return [(compSel >> (24-8*i)) & 0xFF for i in range(4)]
+        return [(compSel >> (24 - 8 * i)) & 0xFF for i in range(4)]

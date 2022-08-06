@@ -8,7 +8,7 @@ class DDSHeader:
     _magic = b'DDS '
     _size = struct.calcsize(_sFormat) - 4
 
-    class Flags(enum.Enum):
+    class Flags(enum.IntFlag):
         Caps        = 0x1
         Height      = 0x2
         Width       = 0x4
@@ -22,7 +22,7 @@ class DDSHeader:
         _sFormat = '<2I4s5I'
         _size = struct.calcsize(_sFormat)
 
-        class Flags(enum.Enum):
+        class Flags(enum.IntFlag):
             AlphaPixels = 0x1
             Alpha       = 0x2
             FourCC      = 0x4
@@ -55,13 +55,13 @@ class DDSHeader:
             assert size == self._size
 
             # Make sure one and only one of these is enabled
-            assert bin(self.flags & (DDSHeader.PixelFormat.Flags.Alpha.value
-                                     | DDSHeader.PixelFormat.Flags.FourCC.value
-                                     | DDSHeader.PixelFormat.Flags.RGB.value
-                                     | DDSHeader.PixelFormat.Flags.YUV.value
-                                     | DDSHeader.PixelFormat.Flags.Luminance.value)).count("1") == 1
+            assert bin(self.flags & (DDSHeader.PixelFormat.Flags.Alpha |                      \
+                                     DDSHeader.PixelFormat.Flags.FourCC |                     \
+                                     DDSHeader.PixelFormat.Flags.RGB |                        \
+                                     DDSHeader.PixelFormat.Flags.YUV |                        \
+                                     DDSHeader.PixelFormat.Flags.Luminance)).count("1") == 1
 
-            if self.flags & DDSHeader.PixelFormat.Flags.FourCC.value:
+            if self.flags & DDSHeader.PixelFormat.Flags.FourCC:
                 assert self.fourCC != b'\0\0\0\0'
 
         def save(self):
@@ -81,12 +81,12 @@ class DDSHeader:
         def size():
             return 0x20
 
-    class Caps(enum.Enum):
+    class Caps(enum.IntFlag):
         Complex = 0x8
         Texture = 0x1000
         MipMap  = 0x400000
 
-    class Caps2(enum.Enum):
+    class Caps2(enum.IntFlag):
         CubeMap           = 0x200
         CubeMap_PositiveX = 0x400
         CubeMap_NegativeX = 0x800
@@ -97,8 +97,9 @@ class DDSHeader:
         Volume            = 0x200000
 
     def __init__(self, data=None, pos=0):
-        self.flags = (DDSHeader.Flags.Caps.value  | DDSHeader.Flags.Height.value |
-                      DDSHeader.Flags.Width.value | DDSHeader.Flags.PixelFormat.value)
+        self.flags = (DDSHeader.Flags.Caps | DDSHeader.Flags.Height |       \
+                      DDSHeader.Flags.Width | DDSHeader.Flags.PixelFormat)
+
         self.height = 0
         self.width = 0
         self.pitchOrLinearSize = 0
@@ -128,27 +129,27 @@ class DDSHeader:
         assert magic == self._magic
         assert size == self._size
 
-        assert self.flags & (DDSHeader.Flags.Caps.value  | DDSHeader.Flags.Height.value |
-                             DDSHeader.Flags.Width.value | DDSHeader.Flags.PixelFormat.value)
-        assert (self.flags & (DDSHeader.Flags.Pitch.value | DDSHeader.Flags.LinearSize.value)
-                != (DDSHeader.Flags.Pitch.value | DDSHeader.Flags.LinearSize.value))  # Make sure they are not set together
+        assert self.flags & (DDSHeader.Flags.Caps  | DDSHeader.Flags.Height |      \
+                             DDSHeader.Flags.Width | DDSHeader.Flags.PixelFormat)
+        assert self.flags & (DDSHeader.Flags.Pitch | DDSHeader.Flags.LinearSize)   \
+            != (DDSHeader.Flags.Pitch | DDSHeader.Flags.LinearSize)                # Make sure they are not set together
         assert self.height != 0
         assert self.width != 0
-        assert self.caps & DDSHeader.Caps.Texture.value
+        assert self.caps & DDSHeader.Caps.Texture
 
-        if self.flags & (DDSHeader.Flags.Pitch.value | DDSHeader.Flags.LinearSize.value):
+        if self.flags & (DDSHeader.Flags.Pitch | DDSHeader.Flags.LinearSize):
             assert self.pitchOrLinearSize != 0
 
         else:
             self.pitchOrLinearSize = 0
 
-        if self.flags & DDSHeader.Flags.Depth.value:
+        if self.flags & DDSHeader.Flags.Depth:
             assert self.depth != 0
 
         else:
             self.depth = 0
 
-        if self.flags & DDSHeader.Flags.MipMapCount.value:
+        if self.flags & DDSHeader.Flags.MipMapCount:
             assert 1 <= self.mipMapCount <= 14
 
         else:

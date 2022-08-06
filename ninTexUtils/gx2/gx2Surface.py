@@ -1,8 +1,16 @@
-import struct
+from . import addrlib
 
-import addrlib
-from gx2Enum import GX2SurfaceDim, GX2SurfaceFormat, GX2AAMode, GX2SurfaceUse, GX2TileMode
-from util import roundUp, divRoundUp
+from ..util import divRoundUp
+from ..util import roundUp
+
+from .gx2Enum import GX2AAMode
+from .gx2Enum import GX2SurfaceDim
+from .gx2Enum import GX2SurfaceFormat
+from .gx2Enum import GX2SurfaceUse
+from .gx2Enum import GX2TileMode
+
+
+import struct
 
 
 class GX2Surface:
@@ -57,10 +65,10 @@ class GX2Surface:
         assert self.pitch != 0
 
         # Assertion must not fail for serialized GX2Surface
-        assert format_ != GX2SurfaceFormat.Invalid.value
+        assert format_ != GX2SurfaceFormat.Invalid
         assert imagePtr == 0
         assert mipPtr == 0
-        assert tileMode != GX2TileMode.Default.value
+        assert tileMode != GX2TileMode.Default
 
         self.dim = GX2SurfaceDim(dim)
         self.format = GX2SurfaceFormat(format_)
@@ -77,19 +85,19 @@ class GX2Surface:
     def save(self):
         return struct.pack(
             self._sFormat,
-            self.dim.value,
+            self.dim,
             self.width,
             self.height,
             self.depth,
             self.numMips,
-            self.format.value,
-            self.aa.value,
-            self.use.value,
+            self.format,
+            self.aa,
+            self.use,
             self.imageSize,
             0,
             self.mipSize,
             0,
-            self.tileMode.value,
+            self.tileMode,
             self.swizzle,
             self.alignment,
             self.pitch,
@@ -104,14 +112,14 @@ class GX2Surface:
         # Calculate the best tileMode if set to default
         if self.tileMode == GX2TileMode.Default:
             self.tileMode = GX2TileMode(addrlib.getDefaultGX2TileMode(
-                self.dim.value, self.width, self.height, self.depth,
-                self.format.value, self.aa.value, self.use.value,
+                self.dim, self.width, self.height, self.depth,
+                self.format, self.aa, self.use,
             ))
 
         # Calculate the surface info for the base level
         surfInfo = addrlib.getSurfaceInfo(
-            self.format.value, self.width, self.height, self.depth,
-            self.dim.value, self.tileMode.value, self.aa.value, 0,
+            self.format, self.width, self.height, self.depth,
+            self.dim, self.tileMode, self.aa, 0,
         )
 
         # Set the image size, alignment and pitch
@@ -122,7 +130,7 @@ class GX2Surface:
         # Ensure pipe and bank swizzle is valid
         self.swizzle &= 0x0700
 
-        # Calculate the swizzle 1D tiling start level, mip size, mip offsets and 
+        # Calculate the swizzle 1D tiling start level, mip size, mip offsets and
         tiling1dLevel = 0
         tiling1dLevelSet = GX2TileMode(surfInfo.tileMode) in (
             GX2TileMode.Linear_Aligned, GX2TileMode.Linear_Special,
@@ -135,16 +143,16 @@ class GX2Surface:
         for mipLevel in range(1, self.numMips):
             # Calculate the surface info for the mip level
             surfInfo = addrlib.getSurfaceInfo(
-                self.format.value, self.width, self.height, self.depth,
-                self.dim.value, self.tileMode.value, self.aa.value, mipLevel,
+                self.format, self.width, self.height, self.depth,
+                self.dim, self.tileMode, self.aa, mipLevel,
             )
 
             # Make sure the level is aligned
             self.mipSize = roundUp(self.mipSize, surfInfo.baseAlign)
 
             # Set the offset of the level
-            ## Level 1 offset is used to place the mip data (levels 1+) after the image data (level 0)
-            ## The value is the minimum size of the image data + padding to ensure the mip data is aligned 
+            #   Level 1 offset is used to place the mip data (levels 1+) after the image data (level 0)
+            #   The value is the minimum size of the image data + padding to ensure the mip data is aligned
             if mipLevel == 1:
                 # Level 1 alignment should suffice to ensure all the other levels are aligned as well
                 self.mipOffset[0] = roundUp(self.imageSize, surfInfo.baseAlign)
@@ -166,7 +174,7 @@ class GX2Surface:
                 else:
                     tiling1dLevel += 1
 
-        ## If the tiling mode never switched to 1D tiling, set the start level to 13 (observed from existing files)
+        #  If the tiling mode never switched to 1D tiling, set the start level to 13 (observed from existing files)
         if not tiling1dLevelSet:
             tiling1dLevel = 13
 
@@ -178,7 +186,7 @@ class GX2Surface:
 
     @staticmethod
     def copySurface(src, dst):
-        ### Check requirements ###
+        #     Check requirements     #
 
         assert dst.dim == src.dim
         assert dst.width == src.width
@@ -187,8 +195,8 @@ class GX2Surface:
         assert dst.numMips <= src.numMips
         assert dst.format == src.format
 
-        ###    Check if the two surfaces are the same     ###
-        ### (If they are, we can just copy the data over) ###
+        #        Check if the two surfaces are the same         #
+        #     (If they are, we can just copy the data over)     #
 
         # Conditions to check are:
         # 1. tileMode is the same (and swizzle is the same for non-linear tiling)
@@ -199,27 +207,27 @@ class GX2Surface:
         # The depths condition can be ignored if we slice with the depth in mind,
         # but that is currently not supported
 
-        if (src.tileMode == dst.tileMode
-            and (src.tileMode in (GX2TileMode.Linear_Aligned,
-                                  GX2TileMode.Linear_Special)
-                 or ((src.swizzle >> 8) & 7) == ((dst.swizzle >> 8) & 7))
-            and ((src.depth == dst.depth
-                  and (src.depth == 1 or src.numMips == dst.numMips))
-                 or src.numMips == 1)):
+        if src.tileMode == dst.tileMode                                        \
+                and (src.tileMode in (GX2TileMode.Linear_Aligned,              \
+                                      GX2TileMode.Linear_Special)              \
+                     or ((src.swizzle >> 8) & 7) == ((dst.swizzle >> 8) & 7))  \
+                and (src.depth == dst.depth                                    \
+                     and (src.depth == 1 or src.numMips == dst.numMips)        \
+                     or src.numMips == 1):
 
             # No need to process anything, just copy the data over
             dst.imageData = src.imageData[:dst.imageSize]
             dst.mipData = src.mipData[:dst.mipSize]
             return
 
-        ### Untile the source data ###
+        #     Untile the source data     #
 
         levels = []
 
         # Calculate the surface info for the base level
         surfInfo = addrlib.getSurfaceInfo(
-            src.format.value, src.width, src.height, src.depth,
-            src.dim.value, src.tileMode.value, src.aa.value, 0,
+            src.format, src.width, src.height, src.depth,
+            src.dim, src.tileMode, src.aa, 0,
         )
 
         # Get the depth used for tiling
@@ -242,7 +250,7 @@ class GX2Surface:
 
         # Untile the base level
         result = addrlib.deswizzle(
-            src.width, src.height, 1, src.format.value, 0, src.use.value, surfInfo.tileMode,
+            src.width, src.height, 1, src.format, 0, src.use, surfInfo.tileMode,
             src.swizzle, surfInfo.pitch, surfInfo.bpp, 0, 0, src.imageData,
         )
 
@@ -260,13 +268,13 @@ class GX2Surface:
 
             # Calculate the surface info for the mip level
             surfInfo = addrlib.getSurfaceInfo(
-                src.format.value, src.width, src.height, src.depth,
-                src.dim.value, src.tileMode.value, src.aa.value, mipLevel,
+                src.format, src.width, src.height, src.depth,
+                src.dim, src.tileMode, src.aa, mipLevel,
             )
 
             # Untile the mip level
             result = addrlib.deswizzle(
-                width, height, 1, src.format.value, 0, src.use.value, surfInfo.tileMode,
+                width, height, 1, src.format, 0, src.use, surfInfo.tileMode,
                 src.swizzle, surfInfo.pitch, surfInfo.bpp, 0, 0, src.mipData[offset:offset + surfInfo.surfSize],
             )
 
@@ -279,13 +287,14 @@ class GX2Surface:
             if mipLevel < src.numMips - 1:
                 offset = src.mipOffset[mipLevel]
 
-        ### Tile the destination data ###
+        #     Tile the destination data     #
 
         # Calculate the surface info for the base level
         surfInfo = addrlib.getSurfaceInfo(
-            dst.format.value, dst.width, dst.height, dst.depth,
-            dst.dim.value, dst.tileMode.value, dst.aa.value, 0,
+            dst.format, dst.width, dst.height, dst.depth,
+            dst.dim, dst.tileMode, dst.aa, 0,
         )
+        assert dst.imageSize == surfInfo.surfSize
 
         # Get the depth used for tiling
         tileMode = GX2TileMode(surfInfo.tileMode)
@@ -307,7 +316,7 @@ class GX2Surface:
 
         # Tile the base level
         dst.imageData = addrlib.swizzle(
-            dst.width, dst.height, 1, dst.format.value, 0, dst.use.value, surfInfo.tileMode,
+            dst.width, dst.height, 1, dst.format, 0, dst.use, surfInfo.tileMode,
             dst.swizzle, surfInfo.pitch, surfInfo.bpp, 0, 0, levels[0].ljust(surfInfo.surfSize, b'\0'),
         )[:surfInfo.surfSize]
 
@@ -320,8 +329,8 @@ class GX2Surface:
 
             # Calculate the surface info for the mip level
             surfInfo = addrlib.getSurfaceInfo(
-                dst.format.value, dst.width, dst.height, dst.depth,
-                dst.dim.value, dst.tileMode.value, dst.aa.value, mipLevel,
+                dst.format, dst.width, dst.height, dst.depth,
+                dst.dim, dst.tileMode, dst.aa, mipLevel,
             )
 
             if mipLevel != 1:
@@ -329,10 +338,11 @@ class GX2Surface:
 
             # Untile the mip level
             mipData += addrlib.swizzle(
-                width, height, 1, dst.format.value, 0, dst.use.value, surfInfo.tileMode,
+                width, height, 1, dst.format, 0, dst.use, surfInfo.tileMode,
                 dst.swizzle, surfInfo.pitch, surfInfo.bpp, 0, 0, levels[mipLevel].ljust(surfInfo.surfSize, b'\0'),
             )[:surfInfo.surfSize]
 
+        assert len(mipData) == dst.mipSize
         dst.mipData = bytes(mipData)
 
 

@@ -1,8 +1,15 @@
 import struct
 
-from gx2Enum import GX2SurfaceDim, GX2AAMode, GX2SurfaceUse, GX2TileMode, GX2CompSel
-from gx2Surface import GX2Surface, GX2SurfacePrintInfo
-from texRegisters import calcRegs
+from .gx2Enum import GX2AAMode
+from .gx2Enum import GX2CompSel
+from .gx2Enum import GX2SurfaceDim
+from .gx2Enum import GX2SurfaceUse
+from .gx2Enum import GX2TileMode
+
+from .gx2Surface import GX2Surface
+from .gx2Surface import GX2SurfacePrintInfo
+
+from ._texture_registers import calcRegs
 
 
 class GX2Texture:
@@ -24,7 +31,7 @@ class GX2Texture:
         self.surface.load(data, pos)
 
         assert self.surface.aa == GX2AAMode.Mode1X
-        assert self.surface.use.value & GX2SurfaceUse.Texture.value
+        assert self.surface.use & GX2SurfaceUse.Texture
 
         (self.viewFirstMip,
          self.viewNumMips,
@@ -66,8 +73,8 @@ class GX2Texture:
 
     def initTextureRegs(self, surfMode=0, perfModulation=7):
         self.regs = list(calcRegs(
-            self.surface.width, self.surface.height, self.surface.numMips, self.surface.format.value,
-            self.surface.tileMode.value, self.surface.pitch * (4 if self.surface.format.isCompressed() else 1),
+            self.surface.width, self.surface.height, self.surface.numMips, self.surface.format,
+            self.surface.tileMode, self.surface.pitch * (4 if self.surface.format.isCompressed() else 1),
             GX2CompSel.getCompSelAsArray(self.compSel), surfMode, perfModulation,
         ))
 
@@ -123,12 +130,14 @@ def Linear2DToGX2Texture(width, height, numMips, format_, compSel, imageData, ti
     )
 
     # Validate and set the image data
-    imageData = bytes(imageData); assert len(imageData) >= linear_texture.surface.imageSize
+    imageData = bytes(imageData)
+    assert len(imageData) >= linear_texture.surface.imageSize
     linear_texture.surface.imageData = imageData[:linear_texture.surface.imageSize]
 
     # Validate and set the mip data
     if numMips > 1:
-        mipData = bytes(mipData); assert len(mipData) >= linear_texture.surface.mipSize
+        mipData = bytes(mipData)
+        assert len(mipData) >= linear_texture.surface.mipSize
         linear_texture.surface.mipData = mipData[:linear_texture.surface.mipSize]
 
     # Create a new GX2Texture to store the tiled texture

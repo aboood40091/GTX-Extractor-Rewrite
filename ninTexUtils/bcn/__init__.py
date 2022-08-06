@@ -8,14 +8,14 @@
 ################################################################
 ################################################################
 
-try:
-    import pyximport
-    pyximport.install()
+from .._cython import is_available as _is_cython_available
 
-    from . import decompress_cy as decompress_
 
-except:
-    from . import decompress_
+if _is_cython_available:
+    from . import decompress_cy as _decompress
+
+else:
+    from . import decompress as _decompress
 
 
 def decompressDXT1(data, width, height):
@@ -23,7 +23,7 @@ def decompressDXT1(data, width, height):
         try:
             data = bytes(data)
 
-        except:
+        except Exception:
             print("Couldn't decompress data")
             return b''
 
@@ -33,7 +33,7 @@ def decompressDXT1(data, width, height):
         return b''
 
     data = data[:csize]
-    return decompress_.decompressDXT1(data, width, height)
+    return _decompress.decompressDXT1(data, width, height)
 
 
 def decompressDXT3(data, width, height):
@@ -41,7 +41,7 @@ def decompressDXT3(data, width, height):
         try:
             data = bytes(data)
 
-        except:
+        except Exception:
             print("Couldn't decompress data")
             return b''
 
@@ -51,7 +51,7 @@ def decompressDXT3(data, width, height):
         return b''
 
     data = data[:csize]
-    return decompress_.decompressDXT3(data, width, height)
+    return _decompress.decompressDXT3(data, width, height)
 
 
 def decompressDXT5(data, width, height):
@@ -59,7 +59,7 @@ def decompressDXT5(data, width, height):
         try:
             data = bytes(data)
 
-        except:
+        except Exception:
             print("Couldn't decompress data")
             return b''
 
@@ -69,7 +69,7 @@ def decompressDXT5(data, width, height):
         return b''
 
     data = data[:csize]
-    return decompress_.decompressDXT5(data, width, height)
+    return _decompress.decompressDXT5(data, width, height)
 
 
 def decompressBC4(data, width, height, SNORM=0):
@@ -77,7 +77,7 @@ def decompressBC4(data, width, height, SNORM=0):
         try:
             data = bytes(data)
 
-        except:
+        except Exception:
             print("Couldn't decompress data")
             return b''
 
@@ -87,7 +87,7 @@ def decompressBC4(data, width, height, SNORM=0):
         return b''
 
     data = data[:csize]
-    return decompress_.decompressBC4(data, width, height, SNORM)
+    return _decompress.decompressBC4(data, width, height, SNORM)
 
 
 def decompressBC5(data, width, height, SNORM=0):
@@ -95,7 +95,7 @@ def decompressBC5(data, width, height, SNORM=0):
         try:
             data = bytes(data)
 
-        except:
+        except Exception:
             print("Couldn't decompress data")
             return b''
 
@@ -105,4 +105,4 @@ def decompressBC5(data, width, height, SNORM=0):
         return b''
 
     data = data[:csize]
-    return decompress_.decompressBC5(data, width, height, SNORM)
+    return _decompress.decompressBC5(data, width, height, SNORM)

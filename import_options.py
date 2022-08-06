@@ -3,9 +3,8 @@ import os
 import sys
 
 # Local libraries
-from gfd import GFDFile
-from gfdEnum import GFDAlignMode
-from gx2Enum import GX2TileMode
+from ninTexUtils.gx2.gfd import GFDFile, GFDAlignMode
+from ninTexUtils.gx2 import GX2TileMode
 
 
 def print_help():
