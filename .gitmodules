@@ -2,3 +2,6 @@
 	path = Lib/ninTexUtils
 	url = https://github.com/aboood40091/ninTexUtils.git
 	branch = cpp
+[submodule "Lib/rio"]
+	path = Lib/rio
+	url = https://github.com/aboood40091/rio.git
