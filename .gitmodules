@@ -1,0 +1,4 @@
+[submodule "Lib/ninTexUtils"]
+	path = Lib/ninTexUtils
+	url = https://github.com/aboood40091/ninTexUtils.git
+	branch = cpp
