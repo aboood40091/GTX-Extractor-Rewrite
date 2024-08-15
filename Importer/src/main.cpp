@@ -111,12 +111,12 @@ int main(int argc, char* argv[])
             handle.write(gfd_data.data(), gfd_data.size());
         }
 
-        free(texture.surface.imagePtr);
-        texture.surface.imagePtr = nullptr;
-        if (texture.surface.mipPtr)
+        std::free(gfd.mTextures.back().surface.imagePtr);
+        gfd.mTextures.back().surface.imagePtr = nullptr;
+        if (gfd.mTextures.back().surface.mipPtr)
         {
-            free(texture.surface.mipPtr);
-            texture.surface.mipPtr = nullptr;
+            std::free(gfd.mTextures.back().surface.mipPtr);
+            gfd.mTextures.back().surface.mipPtr = nullptr;
         }
     }
 

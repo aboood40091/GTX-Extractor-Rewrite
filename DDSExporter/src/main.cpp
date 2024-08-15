@@ -67,7 +67,7 @@ _invalid_input:
                 handle.write(dds, fileSize);
             }
 
-            free(dds);
+            std::free(dds);
         }
         else
         {
@@ -84,7 +84,7 @@ _invalid_input:
                     handle.write(dds, fileSize);
                 }
 
-                free(dds);
+                std::free(dds);
             }
         }
     }
