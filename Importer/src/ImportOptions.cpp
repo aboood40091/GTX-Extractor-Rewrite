@@ -46,34 +46,41 @@ void printHelp()
     std::cout << "  program -i <input_file> [additional_input_files...] [options]" << std::endl << std::endl;
 
     std::cout << "Description:" << std::endl;
-    std::cout << "  This tool processes texture files and outputs them in the GTX format. You can specify input files directly or using the -i option. The tool also supports multiple options for customizing the output." << std::endl << std::endl;
+    std::cout << "  This tool processes texture files and outputs them in the GTX format. The tool can handle a single texture per command. Depending on the input format, you may either specify one or multiple input files. You cannot mix PNG and DDS inputs within the same command." << std::endl << std::endl;
+
+    std::cout << "Input Handling:" << std::endl;
+    std::cout << "  - DDS Input: Only one DDS file can be specified, which may either be converted to a new GTX file or appended to an existing GTX file. Mipmaps are embedded in the DDS file itself." << std::endl;
+    std::cout << "  - PNG Input: Multiple PNG files can be specified to represent different mipmap levels for a single texture. The files must be listed in order from the largest (level 0) to the smallest mipmap." << std::endl << std::endl;
 
     std::cout << "Options:" << std::endl;
     std::cout << "  " << option_help << "                                              Display this help message and exit." << std::endl;
-    std::cout << "  " << option_input << " <input_file>  [additional_input_files...]        Specify the input file(s). Multiple input files can be listed after -i." << std::endl;
+    std::cout << "  " << option_input << " <input_file>  [additional_input_files...]        Specify the input file(s). Multiple input files are only supported if using PNG format." << std::endl;
     std::cout << "  " << option_output << " <output_file>                                    Specify the output file. If not provided, the tool will auto-generate one based on the input." << std::endl;
     std::cout << "  " << option_append << "                                                  Append to an existing GTX file. The first input must be a GTX file specified with -i." << std::endl;
     std::cout << "  " << option_noalign << "                                           Disable data alignment in the output GTX file." << std::endl;
     std::cout << "  " << option_v6 << "                                                 Use version 6.0 of the GTX format." << std::endl;
     std::cout << "  " << option_v6_1 << "                                               Use version 6.1 of the GTX format." << std::endl;
     std::cout << "  " << option_v7 << "                                                 Use version 7.1 of the GTX format (default)." << std::endl;
-    std::cout << "  " << option_tileMode << " <mode>                                    Specify the tile mode. Valid values are between " << GX2_TILE_MODE_DEFAULT << " and " << GX2_TILE_MODE_LINEAR_SPECIAL << "." << std::endl;
-    std::cout << "  " << option_swizzle << " <value>                                    Specify the swizzle value. Valid values are between 0 and 7." << std::endl;
+    std::cout << "  " << option_tileMode << " <mode>                                    Specify the tile mode. Valid values are between " << GX2_TILE_MODE_DEFAULT << " and " << GX2_TILE_MODE_LINEAR_SPECIAL << ". (Default is " << GX2_TILE_MODE_DEFAULT << ", which will auto-select an appropriate tile mode.)" << std::endl;
+    std::cout << "  " << option_swizzle << " <value>                                    Specify the swizzle value. Valid values are between 0 and 7. (Default is 0.)" << std::endl;
     std::cout << "  " << option_SRGB << "                                               Enable SRGB when possible." << std::endl;
     std::cout << "  " << option_compSel << " <component>                                Specify the component selection. Must be exactly 4 characters from r, g, b, a, 0, 1." << std::endl << std::endl;
 
     std::cout << "Examples:" << std::endl;
     std::cout << "  - program input.dds" << std::endl;
     std::cout << "  - program -o output.gtx input.dds" << std::endl;
-    std::cout << "  - program -i input1.dds input2.dds -o output.gtx -v6" << std::endl;
     std::cout << "  - program -i input.dds -tileMode 3 -swizzle 4 -compSel RGBA" << std::endl;
+    std::cout << "  - program -i level0.png level1.png level2.png -o output.gtx -v6" << std::endl;
     std::cout << "  - program -a -i existing.gtx new_input.dds" << std::endl;
-    std::cout << "  - program -a -i existing.gtx new_input.dds -o new_output.gtx" << std::endl << std::endl;
+    std::cout << "  - program -a -i existing.gtx new_level0.png new_level1.png -o new_output.gtx" << std::endl << std::endl;
 
     std::cout << "Notes:" << std::endl;
     std::cout << "  - When using the append option (-a), the first input file specified with -i must be an existing GTX file." << std::endl;
     std::cout << "  - If no output file is specified in append mode, the output is written back to the first input file." << std::endl;
+    std::cout << "  - For DDS inputs, only a single file can be specified." << std::endl;
+    std::cout << "  - For PNG inputs, multiple files can be specified as mipmap levels, but they must all be PNG files and listed in mipmap order." << std::endl;
     std::cout << "  - For the component selection (-compSel), you must provide exactly 4 characters, such as RGBA, 1BGA, RG01, etc." << std::endl;
+    std::cout << "  - The tool only processes a single texture per command." << std::endl;
 }
 
 ImportError processArgv(ImportOptions* p_options, const std::vector<std::string>& arg)
