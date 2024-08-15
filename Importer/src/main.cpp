@@ -88,6 +88,7 @@ int main(int argc, char* argv[])
             arg.path = first_input;
             u8* inb = device->load(arg);
             GX2TextureFromDDS(&texture, inb, arg.read_size, options.tileMode, options.swizzle, options.SRGB, options.compSel, gfd.mHeader.majorVersion == 7);
+            rio::MemUtil::free(inb);
         }
         else
         {
@@ -110,11 +111,13 @@ int main(int argc, char* argv[])
             handle.write(gfd_data.data(), gfd_data.size());
         }
 
-#if 0   // GFDFile destructor will already free these
-        delete[] (u8*)texture.surface.imagePtr;
+        free(texture.surface.imagePtr);
+        texture.surface.imagePtr = nullptr;
         if (texture.surface.mipPtr)
-            delete[] (u8*)texture.surface.mipPtr;
-#endif
+        {
+            free(texture.surface.mipPtr);
+            texture.surface.mipPtr = nullptr;
+        }
     }
 
 _exit:
