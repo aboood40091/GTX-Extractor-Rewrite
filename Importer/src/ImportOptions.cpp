@@ -268,7 +268,7 @@ ImportError processArgv(ImportOptions* p_options, const std::vector<std::string>
     }
 
     // Use SRGB when possible
-    p_options->SRGB = HAS_ARG(option_compSel);
+    p_options->SRGB = HAS_ARG(option_SRGB);
 
     auto& compSel = p_options->compSel;
 
