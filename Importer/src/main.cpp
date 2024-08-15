@@ -28,6 +28,15 @@ int main(int argc, char* argv[])
     case IMPORT_ERROR_APPEND_NO_INPUT:
         std::cout << "Append option (-a) cannot be enabled without specifying the inputs using (-i)!" << std::endl;
         goto _exit_error;
+    case IMPORT_ERROR_INPUT_INVALID_EXT:
+        std::cout << "Expected input file to end with \".png\" or \".dds\"!" << std::endl;
+        goto _exit_error;
+    case IMPORT_ERROR_MIXED_INPUT_TYPES:
+        std::cout << "You cannot mix PNG and DDS inputs within the same command!" << std::endl;
+        goto _exit_error;
+    case IMPORT_ERROR_MULTI_DDS:
+        std::cout << "Expected only one DDS file as input, but multiple files were given!" << std::endl;
+        goto _exit_error;
     case IMPORT_ERROR_INPUT_NOT_EXIST:
         std::cout << "Could not locate one or more of the input files!" << std::endl;
         goto _exit_error;
@@ -36,9 +45,6 @@ int main(int argc, char* argv[])
         goto _exit_error;
     case IMPORT_ERROR_APPEND_OUTPUT_NOT_EXIST:
         std::cout << "Could not locate the output file for appending!" << std::endl;
-        goto _exit_error;
-    case IMPORT_ERROR_INPUT_INVALID_EXT:
-        std::cout << "Expected input file to end with \".png\" or \".dds\"!" << std::endl;
         goto _exit_error;
     case IMPORT_ERROR_MULTI_VERSION:
         std::cout << "Cannot specify multiple version options!" << std::endl;
@@ -75,14 +81,9 @@ int main(int argc, char* argv[])
         rio::NativeFileDevice* const device = rio::FileDeviceMgr::instance()->getNativeFileDevice();
 
         const std::string& first_input = options.filenames[0];
-        if (first_input.size() >= 4 && first_input.substr(first_input.size()-4) == ".dds")
+        if (EndsWith(first_input, ".dds", 4))
         {
-            if (options.filenames.size() > 1)
-            {
-                std::cout << "Expected only one DDS file as input, but multiple files were given!" << std::endl;
-                error = IMPORT_ERROR_MULTI_DDS;
-                goto _exit_error;
-            }
+            assert(options.filenames.size() == 1);
 
             rio::FileDevice::LoadArg arg;
             arg.path = first_input;
@@ -94,7 +95,7 @@ int main(int argc, char* argv[])
         {
             for (const std::string& fname : options.filenames)
             {
-                assert(fname.size() >= 4 && fname.substr(fname.size()-4) == ".png");
+                assert(EndsWith(fname, ".png", 4));
             }
 
             // TODO: PNG to GX2Texture

@@ -129,6 +129,34 @@ ImportError processArgv(ImportOptions* p_options, const std::vector<std::string>
         filenames.assign({ name });
     }
 
+    // Check for mixed input types and excessive inputs
+    bool hasDDS = false;
+    bool hasPNG = false;
+
+    // Skip the first file check if in append mode, as it should be a GTX file
+    const size_t startIndex = HAS_ARG(option_append) ? 1 : 0;
+    if (filenames.size() <= startIndex)
+        return IMPORT_ERROR_NO_INPUT;
+
+    for (size_t i = startIndex; i < filenames.size(); ++i)
+    {
+        const std::string& ext = std::filesystem::path(filenames[i]).extension().string();
+        if (ext == ".dds")
+            hasDDS = true;
+        else if (ext == ".png")
+            hasPNG = true;
+        else
+            return IMPORT_ERROR_INPUT_INVALID_EXT;
+
+        // Error if both DDS and PNG inputs are present
+        if (hasDDS && hasPNG)
+            return IMPORT_ERROR_MIXED_INPUT_TYPES;
+    }
+
+    // Error if multiple DDS files are specified
+    if (hasDDS && (filenames.size() - startIndex) > 1)
+        return IMPORT_ERROR_MULTI_DDS;
+
     rio::NativeFileDevice* p_device = rio::FileDeviceMgr::instance()->getNativeFileDevice();
 
     // Check if all inputs exist
@@ -159,24 +187,20 @@ ImportError processArgv(ImportOptions* p_options, const std::vector<std::string>
     // Get output name from first input name
     else
     {
-        const std::filesystem::path first_input = filenames[0];
-        std::string name = first_input.stem().string();
-        const std::string& ext = first_input.extension().string();
-        if (ext == ".png" || ext == ".dds")
-        {
-            if (name.size() >= 14 && name.substr(name.size()-14) == "_image0_level0")
-                name = name.substr(0, name.size()-14);
+        // Get the filename without the extension
+        const std::string& first_input = filenames[0];
+        const std::filesystem::path& path_first_input = first_input;
+        const std::string& ext = path_first_input.extension().string();
+        assert(EndsWith(first_input, ext));
+        std::string name = first_input.substr(0, first_input.size() - ext.size());
+        if (EndsWith(name, "_image0_level0", 14))
+            name = name.substr(0, name.size() - 14);
 
-            else if (name.size() >= 7 && name.substr(name.size()-7) == "_image0")
-                name = name.substr(0, name.size()-7);
+        else if (EndsWith(name, "_image0", 7))
+            name = name.substr(0, name.size() - 7);
 
-            else if (name.size() >= 7 && name.substr(name.size()-7) == "_level0")
-                name = name.substr(0, name.size()-7);
-        }
-        else
-        {
-            return IMPORT_ERROR_INPUT_INVALID_EXT;
-        }
+        else if (EndsWith(name, "_level0", 7))
+            name = name.substr(0, name.size() - 7);
         output = name + ".gtx";
     }
 
@@ -203,7 +227,6 @@ ImportError processArgv(ImportOptions* p_options, const std::vector<std::string>
     }
 
     // If "no align" option enabled, disable aligning data
-    // (TODO: V6 uses "undef")
     gfd.mHeader.alignMode = HAS_ARG(option_noalign) ? GFD_ALIGN_MODE_DISABLE : GFD_ALIGN_MODE_ENABLE;
 
     bool v6 = HAS_ARG(option_v6);
